@@ -1,0 +1,13 @@
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      NODE_ENV: "development" | "production";
+      PORT?: string;
+      PWD: string;
+      TOKENS?: string;
+      IPV6_SUBNET?: string;
+    }
+  }
+}
+
+export {};
