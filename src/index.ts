@@ -4,6 +4,7 @@ import { serve } from "@hono/node-server";
 import { myFetch } from "myfetchapi";
 import { ReadStream } from "fs";
 import * as http from "http";
+import * as https from "https";
 import { getRandomIPv6 } from "./ip";
 
 const app = new Hono();
@@ -18,7 +19,7 @@ app.get("/proxy", async (c) => {
     const subnet = process.env.IPV6_SUBNET || null;
     const ipv6 = subnet ? getRandomIPv6(subnet) : null;
     if (subnet && ipv6) {
-      request.agent = new http.Agent({
+      request.agent = new (url.startsWith("https:") ? https : http).Agent({
         family: 6,
         localAddress: ipv6,
       });
