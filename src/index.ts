@@ -1,40 +1,57 @@
 import "dotenv/config";
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
+import { myFetch } from "myfetchapi";
+import { ReadStream } from "fs";
 import * as http from "http";
-import { createProxyServer } from "http-proxy";
 import { getRandomIPv6 } from "./ip";
 
-// Create a proxy server
-const proxy = createProxyServer({});
+const app = new Hono();
 
-// Create an HTTP server
-const server = http.createServer((req, res) => {
-  // Create ipv6 pool agent
-  const subnet = process.env.IPV6_SUBNET || null;
-  const ipv6 = subnet ? getRandomIPv6(subnet) : null;
-  const agent = new http.Agent(
-    subnet && ipv6
-      ? {
-          family: 6,
-          localAddress: ipv6,
-        }
-      : {}
-  );
-
-  // Log the request URL
-  console.log(
-    `Proxying request: ${req.url}, using ip(${ipv6}) from subnet(${subnet})`
-  );
-
-  // Forward the request to the target
-  proxy.web(req, res, { target: req.url, agent }, (error) => {
+app.get("/proxy", async (c) => {
+  try {
+    // GET URL
+    const url = c.req.query("url");
+    if (!url || !url.startsWith("http")) throw new Error("invalid url");
+    // GET REQUEST AGENT
+    const request = { ...c.req.raw } as any;
+    const subnet = process.env.IPV6_SUBNET || null;
+    const ipv6 = subnet ? getRandomIPv6(subnet) : null;
+    if (subnet && ipv6) {
+      request.agent = new http.Agent({
+        family: 6,
+        localAddress: ipv6,
+      });
+    }
+    // LOG REQUEST INFO
+    console.log(
+      `Proxying request: ${url}, using ip(${ipv6}) from subnet(${subnet})`
+    );
+    // MAKE REQUEST
+    const resp = await myFetch(url, request, {
+      useNodeFetch: true,
+      retryCondition: () => true,
+      maxRetry: 1,
+    });
+    // RETURN RESPONSE
+    return new Response(
+      resp.body ? (ReadStream.toWeb(resp.body as any) as any) : null,
+      resp
+    );
+  } catch (error: any) {
     console.error("Proxy error:", error);
-    res.writeHead(500);
-    res.end(`Proxy error: ${error.message}`);
-  });
+    return c.text(error.message, 500);
+  }
 });
 
-// Listen on port
-const port = process.env.PORT || 8080;
-server.listen(port, () => {
-  console.log(`Proxy server is running on http://localhost:${port}`);
+app.get("/*", (c) => {
+  return c.json({ ok: true, req: c.req });
 });
+
+serve(
+  {
+    fetch: app.fetch,
+    port: Number(process.env.PORT || 8080),
+  },
+  (info) => console.log(`Server listening on http://localhost:${info.port}`)
+);

@@ -1,33 +1,8 @@
-# Node modules
+# deps
 node_modules/
 package-lock.json
 
-# Logs
-logs
-*.log
-npm-debug.log*
+#build
+dist/
 
-# Dependency directories
-jspm_packages/
-
-# TypeScript
-*.tsbuildinfo
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Optional REPL history
-.node_repl_history
-
-# dotenv environment variables file
-.env
-
-# macOS
-.DS_Store
-
-# Miscellaneous
-*.swp
 
