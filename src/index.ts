@@ -7,18 +7,21 @@ const proxy = createProxyServer({});
 
 // Create an HTTP server
 const server = http.createServer((req, res) => {
-  // Log the request URL
-  console.log(`Proxying request: ${req.url}`);
-
   // Create ipv6 pool agent
-  const subnet = process.env.IPV6_SUBNET;
+  const subnet = process.env.IPV6_SUBNET || null;
+  const ipv6 = subnet ? getRandomIPv6(subnet) : null;
   const agent = new http.Agent(
-    subnet
+    subnet && ipv6
       ? {
           family: 6,
-          localAddress: getRandomIPv6(subnet),
+          localAddress: ipv6,
         }
       : {}
+  );
+
+  // Log the request URL
+  console.log(
+    `Proxying request: ${req.url}, using ip(${ipv6}) from subnet(${subnet})`
   );
 
   // Forward the request to the target
