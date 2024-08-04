@@ -1,0 +1,19 @@
+version: '3.7'
+
+services:
+  proxy-pool:
+    build: .
+    ports:
+      - "8080:8080"
+    networks:
+      - proxy-net
+
+networks:
+  proxy-net:
+    enable_ipv6: true
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.28.0.0/16"
+        - subnet: "2001:3984:3989::/64"
