@@ -1,3 +1,4 @@
+import "dotenv/config";
 import * as http from "http";
 import { createProxyServer } from "http-proxy";
 import { getRandomIPv6 } from "./ip";
