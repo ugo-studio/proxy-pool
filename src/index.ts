@@ -11,8 +11,9 @@ const app = new Hono();
 
 app.all("/proxy", async (c) => {
   try {
-    // GET URL
     const url = c.req.query("url");
+    const headers = JSON.parse(decodeURIComponent(c.req.query("h") ?? "{}"));
+    // CHECK URL
     if (!url || !url.startsWith("http")) return c.text("invalid url", 400);
     // GET REQUEST AGENT
     const subnet = process.env.IPV6_SUBNET || null;
@@ -29,13 +30,14 @@ app.all("/proxy", async (c) => {
       `Proxying request: ${url}, using ip(${ipv6}) from subnet(${subnet})`
     );
     // MAKE REQUEST
+    console.log(headers);
     const req: RequestInit = c.req.raw;
     const resp = await myFetch(
       url,
       {
         agent,
+        headers,
         method: req.method,
-        headers: req.headers as any,
         body: req.body ? ReadStream.fromWeb(req.body as any) : undefined,
       },
       {
