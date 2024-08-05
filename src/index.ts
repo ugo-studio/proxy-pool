@@ -9,40 +9,61 @@ import { getRandomIPv6 } from "./ip";
 
 const app = new Hono();
 
-app.get("/proxy", async (c) => {
+app.all("/proxy", async (c) => {
   try {
     // GET URL
     const url = c.req.query("url");
-    if (!url || !url.startsWith("http")) throw new Error("invalid url");
+    if (!url || !url.startsWith("http")) return c.text("invalid url", 400);
     // GET REQUEST AGENT
-    const request = { ...c.req.raw } as any;
     const subnet = process.env.IPV6_SUBNET || null;
     const ipv6 = subnet ? getRandomIPv6(subnet) : null;
-    if (subnet && ipv6) {
-      request.agent = new (url.startsWith("https:") ? https : http).Agent({
-        family: 6,
-        localAddress: ipv6,
-      });
-    }
+    const agent =
+      subnet && ipv6
+        ? new (url.startsWith("https:") ? https : http).Agent({
+            family: 6,
+            localAddress: ipv6,
+          })
+        : undefined;
     // LOG REQUEST INFO
     console.log(
       `Proxying request: ${url}, using ip(${ipv6}) from subnet(${subnet})`
     );
     // MAKE REQUEST
-    const resp = await myFetch(url, request, {
-      useNodeFetch: true,
-      retryCondition: () => true,
-      maxRetry: 1,
-    });
-    // RETURN RESPONSE
-    return new Response(
-      resp.body ? (ReadStream.toWeb(resp.body as any) as any) : null,
-      resp
+    const req: RequestInit = c.req.raw;
+    const resp = await myFetch(
+      url,
+      {
+        agent,
+        method: req.method,
+        headers: req.headers as any,
+        body: req.body ? ReadStream.fromWeb(req.body as any) : undefined,
+      },
+      {
+        useNodeFetch: true,
+        retryCondition: () => true,
+        maxRetry: 1,
+      }
     );
+    // RETURN RESPONSE
+    return new Response(resp.body, resp);
   } catch (error: any) {
     console.error("Proxy error:", error);
     return c.text(error.message, 500);
   }
+});
+
+app.all("/test", async (c) => {
+  const headers = (() => {
+    const head: any = {};
+    c.req.raw.headers.forEach((v, k) => (head[k] = v));
+    return head;
+  })();
+  return c.json({
+    method: c.req.method,
+    headers: headers,
+    data: c.req.raw.body ? await c.req.text() : null,
+    req: c.req,
+  });
 });
 
 app.get("/*", (c) => {
